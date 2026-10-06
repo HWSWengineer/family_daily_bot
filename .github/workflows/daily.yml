@@ -1,0 +1,47 @@
+name: Daily Telegram Posts
+
+on:
+  schedule:
+    # GitHub cron is in UTC. IST = UTC + 5:30
+    - cron: "30 22 * * *"   # 04:00 AM IST -> motivating quote
+    - cron: "0 16 * * *"    # 09:30 PM IST -> bedtime story
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "quote or story (for manual testing)"
+        required: true
+        default: "quote"
+
+permissions:
+  actions: write   # lets the job re-enable itself (prevents 60-day auto-disable)
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 22 * * *" ]; then
+            echo "mode=quote" >> $GITHUB_OUTPUT
+          else
+            echo "mode=story" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python3 send.py ${{ steps.mode.outputs.mode }}
+
+      - name: Keep schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/daily.yml/enable" || true
