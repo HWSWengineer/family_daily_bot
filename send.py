@@ -7,6 +7,7 @@ Only uses the Python standard library.
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
@@ -14,7 +15,15 @@ from datetime import datetime, timezone, timedelta
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 GEMINI_KEY = os.environ["GEMINI_API_KEY"]
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "").strip()  # optional override
+# Newest-first; the script skips any that Google has retired or that aren't on your free tier.
+FALLBACK_MODELS = [
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+]
 
 IST = timezone(timedelta(hours=5, minutes=30))
 TODAY = datetime.now(IST).strftime("%A, %d %B %Y")
@@ -30,19 +39,35 @@ def http_json(url, payload=None, headers=None, timeout=90):
 
 
 def gemini(prompt, temperature=1.0):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": temperature},
     }
-    last = None
-    for _ in range(3):  # simple retry
-        try:
-            res = http_json(url, body, {"x-goog-api-key": GEMINI_KEY})
-            return res["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except Exception as e:  # noqa
-            last = e
-    raise RuntimeError(f"Gemini failed: {last}")
+    # Try models in order; if one is retired (404) or rate-limited, move to the next.
+    # GEMINI_MODEL (if set) is tried first.
+    models = ([MODEL] if MODEL else []) + [
+        m for m in FALLBACK_MODELS if m != MODEL
+    ]
+    errors = []
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        for attempt in range(2):
+            try:
+                res = http_json(url, body, {"x-goog-api-key": GEMINI_KEY})
+                print("Used model:", model)
+                return res["candidates"][0]["content"]["parts"][0]["text"].strip()
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode(errors="ignore")[:300]
+                errors.append(f"{model} -> HTTP {e.code}: {detail}")
+                print(errors[-1])
+                if e.code in (404, 400, 403):
+                    break  # retrying the same model won't help
+                time.sleep(5)
+            except Exception as e:  # noqa
+                errors.append(f"{model} -> {e}")
+                print(errors[-1])
+                time.sleep(5)
+    raise RuntimeError("Gemini failed on all models:\n" + "\n".join(errors))
 
 
 def get_quote():
@@ -63,7 +88,7 @@ def get_quote():
 def get_story():
     return gemini(
         f"Today is {TODAY}. Write a calm, original bedtime story for children aged 4-8, "
-        "about 400 words (between 350 and 450). Requirements: gentle tone, a fresh setting and "
+        "about 1000 words (between 950 and 1050). Requirements: gentle tone, a fresh setting and "
         "characters (animals, nature, kind magic), a small problem solved through kindness or "
         "courage, a soothing ending that leads to sleep, and a one-line moral at the end. "
         "Start with a title on its own line prefixed by 🌙. Use short paragraphs separated by "
