@@ -63,7 +63,7 @@ def get_quote():
 def get_story():
     return gemini(
         f"Today is {TODAY}. Write a calm, original bedtime story for children aged 4-8, "
-        "about 1000 words (between 950 and 1050). Requirements: gentle tone, a fresh setting and "
+        "about 400 words (between 350 and 450). Requirements: gentle tone, a fresh setting and "
         "characters (animals, nature, kind magic), a small problem solved through kindness or "
         "courage, a soothing ending that leads to sleep, and a one-line moral at the end. "
         "Start with a title on its own line prefixed by 🌙. Use short paragraphs separated by "
