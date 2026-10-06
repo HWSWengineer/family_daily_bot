@@ -3,12 +3,13 @@ name: Daily Telegram Posts
 on:
   schedule:
     # GitHub cron is in UTC. IST = UTC + 5:30
-    - cron: "30 22 * * *"   # 04:00 AM IST -> motivating quote
-    - cron: "0 16 * * *"    # 09:30 PM IST -> bedtime story
+    - cron: "30 22 * * *"   # 04:00 AM IST  -> "Good Morning warrior" + quote
+    - cron: "0 7 * * *"     # 12:30 PM IST  -> proverb / idiom
+    - cron: "30 15 * * *"   # 09:00 PM IST  -> bedtime story + closing message
   workflow_dispatch:
     inputs:
       mode:
-        description: "quote or story (for manual testing)"
+        description: "quote, proverb or story (for manual testing)"
         required: true
         default: "quote"
 
@@ -25,23 +26,32 @@ jobs:
 
       - name: Decide mode
         id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ github.event.inputs.mode }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "30 22 * * *" ]; then
-            echo "mode=quote" >> $GITHUB_OUTPUT
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            MODE="$INPUT_MODE"
+          elif [ "$SCHEDULE" = "30 22 * * *" ]; then
+            MODE="quote"
+          elif [ "$SCHEDULE" = "0 7 * * *" ]; then
+            MODE="proverb"
           else
-            echo "mode=story" >> $GITHUB_OUTPUT
+            MODE="story"
           fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Running mode: $MODE"
 
       - name: Send to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python3 send.py ${{ steps.mode.outputs.mode }}
+        run: python3 send.py "${{ steps.mode.outputs.mode }}"
 
       - name: Keep schedule alive
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/daily.yml/enable" || true
