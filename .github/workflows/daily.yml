@@ -3,9 +3,9 @@ name: Daily Telegram Posts
 on:
   schedule:
     # GitHub cron is in UTC. IST = UTC + 5:30
-    - cron: "30 22 * * *"   # 04:00 AM IST  -> "Good Morning warrior" + quote
-    - cron: "0 7 * * *"     # 12:30 PM IST  -> proverb / idiom
-    - cron: "30 15 * * *"   # 09:00 PM IST  -> bedtime story + closing message
+    - cron: "33 22 * * *"   # ~04:03 AM IST -> "Good Morning warrior" + quote
+    - cron: "3 7 * * *"     # ~12:33 PM IST -> proverb / idiom
+    - cron: "33 15 * * *"   # ~09:03 PM IST -> bedtime story + closing message
   workflow_dispatch:
     inputs:
       mode:
@@ -33,9 +33,9 @@ jobs:
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then
             MODE="$INPUT_MODE"
-          elif [ "$SCHEDULE" = "30 22 * * *" ]; then
+          elif [ "$SCHEDULE" = "33 22 * * *" ]; then
             MODE="quote"
-          elif [ "$SCHEDULE" = "0 7 * * *" ]; then
+          elif [ "$SCHEDULE" = "3 7 * * *" ]; then
             MODE="proverb"
           else
             MODE="story"
