@@ -4,7 +4,7 @@ on:
   schedule:
     # GitHub cron is in UTC. IST = UTC + 5:30
     - cron: "33 22 * * *"   # ~04:03 AM IST -> "Good Morning warrior" + quote
-    - cron: "27 11 * * *"     # ~12:33 PM IST -> proverb / idiom
+    - cron: "46 11 * * *"     # ~12:33 PM IST -> proverb / idiom
     - cron: "33 15 * * *"   # ~09:03 PM IST -> bedtime story + closing message
   workflow_dispatch:
     inputs:
@@ -35,7 +35,7 @@ jobs:
             MODE="$INPUT_MODE"
           elif [ "$SCHEDULE" = "33 22 * * *" ]; then
             MODE="quote"
-          elif [ "$SCHEDULE" = "3 7 * * *" ]; then
+          elif [ "$SCHEDULE" = "46 11 * * *" ]; then
             MODE="proverb"
           else
             MODE="story"
