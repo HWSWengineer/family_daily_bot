@@ -4,7 +4,7 @@ on:
   schedule:
     # GitHub cron is in UTC. IST = UTC + 5:30
     - cron: "33 22 * * *"   # ~04:03 AM IST -> "Good Morning warrior" + quote
-    - cron: "46 11 * * *"     # ~12:33 PM IST -> proverb / idiom
+    - cron: "10 12 * * *"   # ~05:40 PM IST -> proverb / idiom
     - cron: "33 15 * * *"   # ~09:03 PM IST -> bedtime story + closing message
   workflow_dispatch:
     inputs:
@@ -28,18 +28,27 @@ jobs:
         id: mode
         env:
           EVENT: ${{ github.event_name }}
-          SCHEDULE: ${{ github.event.schedule }}
           INPUT_MODE: ${{ github.event.inputs.mode }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then
             MODE="$INPUT_MODE"
-          elif [ "$SCHEDULE" = "33 22 * * *" ]; then
-            MODE="quote"
-          elif [ "$SCHEDULE" = "46 11 * * *" ]; then
-            MODE="proverb"
           else
-            MODE="story"
+            # Determine mode based on actual UTC time (robust against GitHub's scheduling delays)
+            HOUR_MIN=$(date -u +%H%M)
+            echo "Current UTC time: $HOUR_MIN"
+
+            if [ "$HOUR_MIN" -ge 2200 ] || [ "$HOUR_MIN" -lt 100 ]; then
+              MODE="quote"
+            elif [ "$HOUR_MIN" -ge 1200 ] && [ "$HOUR_MIN" -lt 1400 ]; then
+              MODE="proverb"
+            elif [ "$HOUR_MIN" -ge 1500 ] && [ "$HOUR_MIN" -lt 1700 ]; then
+              MODE="story"
+            else
+              # Fallback: pick closest scheduled slot
+              MODE="quote"
+            fi
           fi
+
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "Running mode: $MODE"
 
